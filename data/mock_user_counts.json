@@ -1,0 +1,36 @@
+{
+  "ap-south-1": {
+    "video-streaming": {
+      "total_active_users": 4200000,
+      "users_experiencing_errors": 520000,
+      "users_experiencing_degradation": 1800000,
+      "premium_users_affected": 85000,
+      "regions_affected": ["Mumbai", "Delhi", "Bangalore", "Chennai"],
+      "peak_event_active": true,
+      "peak_event_name": "ICC Champions Trophy Semi-Final",
+      "timestamp": "2024-12-15T14:05:00Z"
+    },
+    "dns-resolution": {
+      "total_active_users": 8500000,
+      "users_experiencing_errors": 68000,
+      "users_experiencing_degradation": 200000,
+      "premium_users_affected": 12000,
+      "regions_affected": ["Mumbai"],
+      "peak_event_active": false,
+      "peak_event_name": null,
+      "timestamp": "2024-12-15T14:05:00Z"
+    }
+  },
+  "us-east-1": {
+    "video-streaming": {
+      "total_active_users": 6800000,
+      "users_experiencing_errors": 20400,
+      "users_experiencing_degradation": 50000,
+      "premium_users_affected": 5000,
+      "regions_affected": ["New York"],
+      "peak_event_active": false,
+      "peak_event_name": null,
+      "timestamp": "2024-12-15T14:05:00Z"
+    }
+  }
+}

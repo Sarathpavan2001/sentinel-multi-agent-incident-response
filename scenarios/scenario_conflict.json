@@ -1,0 +1,12 @@
+{
+  "name": "Conflict Scenario -Ambiguous Root Cause (Deploy + Load Spike)",
+  "description": "ap-south-1 video-streaming during ICC Champions Trophy. Deploy v2.3.1 landed at 14:02, but traffic was already spiking from 14:00 due to the cricket match. Error rates are high (12.4%), latency is 10x normal. 6 unhealthy instances, CDN cache hit rate collapsed. Root Cause Agent will blame the deployment; Capacity Agent will blame the load spike. The 2-minute overlap makes this genuinely ambiguous -the Incident Commander must mediate.",
+  "region": "ap-south-1",
+  "service": "video-streaming",
+  "expected_outcome": {
+    "root_cause_type": "either bad_deployment or load_spike -genuinely ambiguous",
+    "conflict_expected": true,
+    "severity_range": ["high", "critical"],
+    "notes": "This is the demo centerpiece. The reconciliation loop should fire at least once. Both hypotheses have legitimate evidence."
+  }
+}

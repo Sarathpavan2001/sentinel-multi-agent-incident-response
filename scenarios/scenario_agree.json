@@ -1,0 +1,12 @@
+{
+  "name": "Clean Convergence -Bad Deployment (Obvious)",
+  "description": "Deploy v2.3.1 to us-east-1 caused a minor blip. No load anomaly at all. Both agents should quickly agree on bad_deployment with high confidence and low severity.",
+  "region": "us-east-1",
+  "service": "video-streaming",
+  "expected_outcome": {
+    "root_cause_type": "bad_deployment",
+    "conflict_expected": false,
+    "severity_range": ["low", "medium"],
+    "notes": "us-east-1 video-streaming has normal metrics and a recent deploy. Agents should converge quickly."
+  }
+}

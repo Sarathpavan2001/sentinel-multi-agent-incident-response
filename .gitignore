@@ -1,0 +1,14 @@
+.env
+.claude/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+logs/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+faiss_index/
+*.log

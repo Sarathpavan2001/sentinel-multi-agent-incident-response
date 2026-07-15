@@ -1,0 +1,40 @@
+{
+  "ap-south-1": {
+    "video-streaming": {
+      "total_instances": 24,
+      "healthy_instances": 18,
+      "unhealthy_instances": 6,
+      "auto_scaling_group": "asg-video-ap-south",
+      "current_capacity": 24,
+      "max_capacity": 48,
+      "min_capacity": 12,
+      "scaling_cooldown_active": false,
+      "load_balancer_status": "active",
+      "load_balancer_5xx_count": 1450,
+      "cdn_cache_hit_rate_percent": 62,
+      "baseline_cache_hit_rate_percent": 94,
+      "database_connections_used": 890,
+      "database_connections_max": 1000,
+      "timestamp": "2024-12-15T14:05:00Z"
+    }
+  },
+  "us-east-1": {
+    "video-streaming": {
+      "total_instances": 32,
+      "healthy_instances": 32,
+      "unhealthy_instances": 0,
+      "auto_scaling_group": "asg-video-us-east",
+      "current_capacity": 32,
+      "max_capacity": 64,
+      "min_capacity": 16,
+      "scaling_cooldown_active": false,
+      "load_balancer_status": "active",
+      "load_balancer_5xx_count": 12,
+      "cdn_cache_hit_rate_percent": 95,
+      "baseline_cache_hit_rate_percent": 94,
+      "database_connections_used": 320,
+      "database_connections_max": 1000,
+      "timestamp": "2024-12-15T14:05:00Z"
+    }
+  }
+}

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel &mdash; Agent Trace Viewer</title>
+<style>
+:root {
+  --bg: #0a0c10;
+  --surface: #12151c;
+  --surface2: #1a1e2a;
+  --surface3: #222738;
+  --border: #2a3045;
+  --text: #e2e6f0;
+  --text2: #7a82a0;
+  --accent: #7c6cf0;
+  --accent2: #a78bfa;
+  --green: #34d399;
+  --red: #f87171;
+  --orange: #fbbf24;
+  --blue: #60a5fa;
+  --cyan: #22d3ee;
+  --pink: #f472b6;
+  --font: 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  --radius: 12px;
+  --glow-accent: rgba(124,108,240,0.15);
+  --glow-blue: rgba(96,165,250,0.15);
+  --glow-cyan: rgba(34,211,238,0.15);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); overflow-x: hidden; }
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), var(--blue));
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: #fff;
+  box-shadow: 0 0 20px var(--glow-accent);
+}
+.header h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+.header h1 span { color: var(--text2); font-weight: 400; font-size: 14px; }
+
+/* Controls bar */
+.controls {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 28px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.scenario-select {
+  padding: 8px 16px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 13px; font-family: var(--font);
+  cursor: pointer; outline: none; min-width: 280px;
+}
+.scenario-select:focus { border-color: var(--accent); }
+.scenario-select option { background: var(--surface2); color: var(--text); }
+.run-btn {
+  padding: 8px 24px; background: linear-gradient(135deg, var(--accent), #6366f1);
+  color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+}
+.run-btn:hover { opacity: 0.9; box-shadow: 0 0 20px var(--glow-accent); }
+.run-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.run-status { font-size: 12px; color: var(--text2); margin-left: 8px; }
+
+/* Main grid */
+.main-grid {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: calc(100vh - 110px);
+}
+
+/* Agent Flow Graph */
+.flow-section {
+  padding: 24px 28px;
+  position: relative;
+}
+.flow-section h2 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--text2); margin-bottom: 16px;
+}
+
+.flow-container {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; position: relative; perspective: 1200px;
+  padding: 20px 0;
+}
+
+.flow-node {
+  width: 130px; min-height: 80px; position: relative;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; text-align: center; cursor: pointer;
+  transition: all 0.3s ease; transform-style: preserve-3d;
+  transform: rotateX(2deg);
+  z-index: 2;
+}
+.flow-node:hover {
+  border-color: var(--accent); transform: rotateX(0deg) translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px var(--glow-accent);
+}
+.flow-node.active {
+  border-color: var(--accent); box-shadow: 0 0 30px var(--glow-accent);
+  transform: rotateX(0deg) translateY(-4px) scale(1.05);
+}
+.flow-node.running {
+  border-color: var(--orange);
+  animation: nodeGlow 1.5s ease-in-out infinite;
+}
+@keyframes nodeGlow {
+  0%,100% { box-shadow: 0 0 10px rgba(251,191,36,0.2); }
+  50% { box-shadow: 0 0 30px rgba(251,191,36,0.4); }
+}
+.flow-node.done { border-color: var(--green); }
+.flow-node.conflict { border-color: var(--red); }
+
+.node-icon {
+  width: 28px; height: 28px; margin: 0 auto 6px;
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #fff;
+}
+.ni-monitor { background: linear-gradient(135deg, var(--orange), #f59e0b); }
+.ni-rootcause { background: linear-gradient(135deg, var(--blue), #3b82f6); }
+.ni-capacity { background: linear-gradient(135deg, var(--cyan), #06b6d4); }
+.ni-impact { background: linear-gradient(135deg, var(--pink), #ec4899); }
+.ni-commander { background: linear-gradient(135deg, var(--accent), #6366f1); }
+.ni-remediation { background: linear-gradient(135deg, var(--green), #10b981); }
+.ni-postmortem { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
+
+.node-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.node-sub { font-size: 9px; color: var(--text2); margin-top: 2px; }
+
+.flow-arrow {
+  width: 40px; height: 2px; background: var(--border); position: relative;
+  flex-shrink: 0;
+}
+.flow-arrow::after {
+  content: ''; position: absolute; right: -1px; top: -4px;
+  border: 5px solid transparent; border-left: 6px solid var(--border);
+}
+.flow-arrow.active { background: var(--accent); }
+.flow-arrow.active::after { border-left-color: var(--accent); }
+.flow-arrow.conflict { background: var(--red); }
+.flow-arrow.conflict::after { border-left-color: var(--red); }
+
+.flow-parallel {
+  display: flex; flex-direction: column; gap: 8px; position: relative;
+}
+.flow-parallel::before {
+  content: ''; position: absolute; left: -20px;
+  top: 0; bottom: 0; width: 2px; background: var(--border);
+}
+
+.flow-recon-loop {
+  position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; color: var(--red); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; background: var(--bg); padding: 2px 10px; border-radius: 4px;
+  border: 1px solid rgba(248,113,113,0.3);
+  white-space: nowrap;
+}
+
+/* Trace Detail Section */
+.trace-section {
+  padding: 0 28px 28px;
+}
+.trace-section h2 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--text2); margin-bottom: 16px;
+}
+
+/* Agent trace columns */
+.trace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.agent-trace-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.agent-trace-card:hover { border-color: var(--accent); }
+.agent-trace-card.highlight { border-color: var(--accent); box-shadow: 0 0 20px var(--glow-accent); }
+
+.atc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.atc-header-left { display: flex; align-items: center; gap: 10px; }
+.atc-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.atc-header h3 { font-size: 13px; font-weight: 700; }
+.atc-phase {
+  font-size: 9px; padding: 2px 8px; border-radius: 4px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.phase-initial { background: rgba(96,165,250,0.15); color: var(--blue); }
+.phase-reconciliation { background: rgba(248,113,113,0.15); color: var(--red); }
+
+.atc-body { padding: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.atc-body.collapsed { max-height: 0 !important; }
+.atc-toggle {
+  font-size: 10px; color: var(--text2); cursor: pointer; user-select: none;
+  transition: transform 0.3s;
+}
+.atc-toggle.open { transform: rotate(180deg); }
+
+/* Event list */
+.event-list { list-style: none; }
+.event-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(42,48,69,0.5);
+  transition: background 0.15s;
+}
+.event-item:hover { background: var(--surface2); }
+.event-item:last-child { border-bottom: none; }
+
+.ev-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.ev-type {
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
+  padding: 2px 6px; border-radius: 3px;
+}
+.ev-tool_call { background: rgba(96,165,250,0.15); color: var(--blue); }
+.ev-llm_call { background: rgba(124,108,240,0.15); color: var(--accent2); }
+.ev-hypothesis { background: rgba(52,211,153,0.15); color: var(--green); }
+.ev-classification { background: rgba(251,191,36,0.15); color: var(--orange); }
+.ev-conflict_detected { background: rgba(248,113,113,0.15); color: var(--red); }
+.ev-decision { background: rgba(52,211,153,0.15); color: var(--green); }
+.ev-proposal { background: rgba(34,211,238,0.15); color: var(--cyan); }
+.ev-assessment { background: rgba(244,114,182,0.15); color: var(--pink); }
+.ev-report_generated { background: rgba(167,139,250,0.15); color: var(--accent2); }
+.ev-revision_detected { background: rgba(251,191,36,0.15); color: var(--orange); }
+.ev-reconciliation_input { background: rgba(248,113,113,0.15); color: var(--red); }
+
+.ev-dur { font-size: 10px; color: var(--text2); font-family: var(--mono); }
+
+.ev-content { font-size: 12px; line-height: 1.6; color: var(--text2); }
+.ev-content strong { color: var(--text); font-weight: 600; }
+
+.ev-tool-name { color: var(--blue); font-weight: 700; font-family: var(--mono); font-size: 11px; }
+.ev-tool-args { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-top: 2px; }
+.ev-tool-result {
+  margin-top: 6px; padding: 8px 10px; background: var(--bg);
+  border-radius: 6px; font-size: 10px; font-family: var(--mono);
+  color: var(--text2); max-height: 150px; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word;
+  border: 1px solid var(--border);
+}
+
+.ev-hypothesis-box {
+  margin-top: 6px; padding: 10px; background: var(--bg);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.ev-hyp-type {
+  font-size: 15px; font-weight: 800; text-transform: uppercase;
+  margin-bottom: 4px; letter-spacing: 0.5px;
+}
+.ev-hyp-conf {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.conf-bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 3px; }
+.conf-val { font-size: 12px; font-weight: 700; font-family: var(--mono); }
+.ev-evidence { font-size: 11px; color: var(--text2); line-height: 1.5; }
+.ev-evidence li { margin-bottom: 4px; padding-left: 10px; position: relative; }
+.ev-evidence li::before { content: '>'; position: absolute; left: 0; color: var(--accent2); }
+
+/* Decision box */
+.ev-decision-box {
+  margin-top: 6px; padding: 10px; background: var(--bg);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.ev-decision-status { font-size: 14px; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; }
+.ev-question-text {
+  font-size: 12px; line-height: 1.6; color: var(--orange);
+  font-style: italic; padding: 8px; background: rgba(251,191,36,0.05);
+  border-radius: 6px; border-left: 3px solid var(--orange);
+  max-height: 120px; overflow-y: auto;
+}
+
+/* Summary dashboard */
+.summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px; margin-bottom: 24px;
+}
+.summary-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; text-align: center;
+}
+.summary-card label {
+  display: block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text2); margin-bottom: 6px;
+}
+.summary-card .val { font-size: 22px; font-weight: 800; }
+
+/* Welcome state */
+.welcome {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; text-align: center; gap: 16px; padding: 40px;
+}
+.welcome h2 { font-size: 22px; font-weight: 700; }
+.welcome p { color: var(--text2); font-size: 14px; max-width: 500px; line-height: 1.7; }
+
+/* Loading animation */
+.loading-bar {
+  height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden;
+  margin: 0 28px;
+}
+.loading-bar-inner {
+  height: 100%; width: 30%; background: linear-gradient(90deg, var(--accent), var(--blue), var(--cyan));
+  border-radius: 2px; animation: loadSlide 1.5s ease-in-out infinite;
+}
+@keyframes loadSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .flow-container { flex-wrap: wrap; gap: 12px; }
+  .flow-arrow { display: none; }
+  .trace-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">S</div>
+    <h1>Sentinel <span>Agent Trace Viewer</span></h1>
+  </div>
+</div>
+
+<div class="controls">
+  <select class="scenario-select" id="scenarioSelect">
+    <option value="">Loading scenarios...</option>
+  </select>
+  <button class="run-btn" id="runBtn" disabled onclick="runScenario()">Run Incident</button>
+  <span class="run-status" id="runStatus"></span>
+</div>
+
+<div id="loadingBar" style="display:none"><div class="loading-bar"><div class="loading-bar-inner"></div></div></div>
+
+<div id="app">
+  <div class="welcome">
+    <div class="logo" style="width:64px;height:64px;font-size:28px;border-radius:16px;">S</div>
+    <h2>Multi-Agent Trace Viewer</h2>
+    <p>Select a scenario and run an incident. You'll see every agent's tool calls, SOP lookups, LLM reasoning, hypothesis formation, and the reconciliation flow visualized step by step.</p>
+  </div>
+</div>
+
+<script>
+const API = '';
+let scenarios = [];
+let currentTrace = null;
+let currentIncident = null;
+
+async function init() {
+  const res = await fetch(API + '/scenarios');
+  scenarios = await res.json();
+  const sel = document.getElementById('scenarioSelect');
+  sel.innerHTML = '<option value="">Select a scenario...</option>';
+  scenarios.forEach((s, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = s.name + ' (' + s.region + ')';
+    sel.appendChild(opt);
+  });
+  sel.onchange = () => {
+    document.getElementById('runBtn').disabled = !sel.value;
+  };
+}
+
+async function runScenario() {
+  const idx = document.getElementById('scenarioSelect').value;
+  if (idx === '') return;
+  const scenario = scenarios[idx];
+  const btn = document.getElementById('runBtn');
+  const status = document.getElementById('runStatus');
+  btn.disabled = true;
+  status.textContent = 'Agents investigating...';
+  document.getElementById('loadingBar').style.display = 'block';
+  document.getElementById('app').innerHTML = renderFlowGraph({}, 'running');
+
+  try {
+    const res = await fetch(API + '/incident/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': 'dev-key' },
+      body: JSON.stringify({ region: scenario.region, service: scenario.service }),
+    });
+    currentIncident = await res.json();
+
+    const traceRes = await fetch(API + '/incident/' + currentIncident.incident_id + '/trace');
+    currentTrace = await traceRes.json();
+
+    status.textContent = 'Done in ' + (currentTrace.duration_ms / 1000).toFixed(1) + 's';
+    renderFullTrace(currentIncident, currentTrace);
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    document.getElementById('app').innerHTML = `<div class="welcome"><h2>Error</h2><p>${esc(e.message)}</p></div>`;
+  }
+  document.getElementById('loadingBar').style.display = 'none';
+  btn.disabled = false;
+}
+
+function renderFullTrace(incident, trace) {
+  const app = document.getElementById('app');
+  let html = '';
+
+  // Summary dashboard
+  html += '<div style="padding:24px 28px 0">';
+  html += '<h2 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text2);margin-bottom:12px;">Incident Summary</h2>';
+  html += '<div class="summary-grid">';
+  html += summaryCard('Incident', incident.incident_id, 'var(--accent2)');
+  html += summaryCard('Status', (incident.status || '').replace('_',' ').toUpperCase(), statusColor(incident.status));
+  html += summaryCard('Severity', (incident.severity || '').toUpperCase(), sevColor(incident.severity));
+  html += summaryCard('Affected Users', (incident.affected_users_estimate || 0).toLocaleString(), 'var(--pink)');
+  html += summaryCard('Conflict', incident.conflict_detected ? 'YES' : 'NO', incident.conflict_detected ? 'var(--red)' : 'var(--green)');
+  html += summaryCard('Recon Rounds', incident.reconciliation_round || 0, 'var(--orange)');
+  html += summaryCard('Duration', (trace.duration_ms / 1000).toFixed(1) + 's', 'var(--cyan)');
+  html += summaryCard('Agents', trace.agent_traces.length, 'var(--blue)');
+  html += '</div></div>';
+
+  // Flow graph
+  html += '<div class="flow-section">';
+  html += '<h2>Agent Flow</h2>';
+  html += renderFlowGraph(trace, incident.conflict_detected ? 'conflict' : 'done');
+  html += '</div>';
+
+  // Agent traces
+  cardIdCounter = 0;
+  html += '<div class="trace-section">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">';
+  html += '<h2 style="margin-bottom:0">Agent Traces</h2>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="toggleAllCards(true)" style="padding:4px 12px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:6px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px">Expand All</button>';
+  html += '<button onclick="toggleAllCards(false)" style="padding:4px 12px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:6px;cursor:pointer;text-transform:uppercase;letter-spacing:0.5px">Collapse All</button>';
+  html += '</div></div>';
+  html += '<div class="trace-grid">';
+
+  const agentOrder = ['monitoring', 'root_cause', 'capacity', 'customer_impact', 'incident_commander', 'remediation', 'postmortem'];
+  const agentLabels = {
+    monitoring: 'Monitoring', root_cause: 'Root Cause', capacity: 'Capacity',
+    customer_impact: 'Customer Impact', incident_commander: 'Incident Commander',
+    remediation: 'Remediation', postmortem: 'Postmortem'
+  };
+  const agentColors = {
+    monitoring: 'var(--orange)', root_cause: 'var(--blue)', capacity: 'var(--cyan)',
+    customer_impact: 'var(--pink)', incident_commander: 'var(--accent)',
+    remediation: 'var(--green)', postmortem: 'var(--accent2)'
+  };
+
+  for (const agent of agentOrder) {
+    const traces = trace.agent_traces.filter(t => t.agent === agent);
+    if (!traces.length) continue;
+    for (const at of traces) {
+      html += renderAgentTraceCard(at, agentLabels[agent] || agent, agentColors[agent] || 'var(--text2)');
+    }
+  }
+  html += '</div></div>';
+
+  // Final root cause
+  if (incident.final_root_cause) {
+    html += '<div style="padding:0 28px 28px">';
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px">';
+    html += '<h3 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text2);margin-bottom:10px">Final Root Cause</h3>';
+    html += '<p style="font-size:14px;line-height:1.7">' + esc(incident.final_root_cause) + '</p>';
+    html += '</div></div>';
+  }
+
+  app.innerHTML = html;
+}
+
+function summaryCard(label, value, color) {
+  return `<div class="summary-card"><label>${label}</label><div class="val" style="color:${color}">${value}</div></div>`;
+}
+
+function statusColor(s) {
+  return s === 'resolved' ? 'var(--green)' : s === 'pending_approval' ? 'var(--orange)' : s === 'escalated' ? 'var(--red)' : 'var(--blue)';
+}
+function sevColor(s) {
+  return s === 'low' ? 'var(--green)' : s === 'medium' ? 'var(--orange)' : s === 'high' ? 'var(--red)' : s === 'critical' ? '#ff4757' : 'var(--text2)';
+}
+
+function renderFlowGraph(trace, mode) {
+  const nodes = [
+    { id: 'monitoring', label: 'Monitor', icon: 'ni-monitor', short: 'M' },
+    { id: 'root_cause', label: 'Root Cause', icon: 'ni-rootcause', short: 'RC' },
+    { id: 'capacity', label: 'Capacity', icon: 'ni-capacity', short: 'CP' },
+    { id: 'customer_impact', label: 'Impact', icon: 'ni-impact', short: 'CI' },
+    { id: 'incident_commander', label: 'Commander', icon: 'ni-commander', short: 'IC' },
+    { id: 'remediation', label: 'Remediate', icon: 'ni-remediation', short: 'RX' },
+    { id: 'postmortem', label: 'Postmortem', icon: 'ni-postmortem', short: 'PM' },
+  ];
+
+  const traceAgents = trace.agent_traces ? trace.agent_traces.map(t => t.agent) : [];
+  const hasConflict = mode === 'conflict';
+
+  let html = '<div class="flow-container">';
+
+  // Monitoring
+  html += flowNode(nodes[0], traceAgents, mode);
+  html += '<div class="flow-arrow' + (traceAgents.includes('monitoring') ? ' active' : '') + '"></div>';
+
+  // Parallel group
+  html += '<div class="flow-parallel">';
+  html += flowNode(nodes[1], traceAgents, mode);
+  html += flowNode(nodes[2], traceAgents, mode);
+  html += flowNode(nodes[3], traceAgents, mode);
+  html += '</div>';
+
+  html += '<div class="flow-arrow' + (traceAgents.includes('root_cause') ? ' active' : '') + '"></div>';
+
+  // IC
+  const icNode = '<div style="position:relative">';
+  html += icNode + flowNode(nodes[4], traceAgents, mode, hasConflict);
+  if (hasConflict) {
+    html += '<div class="flow-recon-loop">Reconciliation Loop</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="flow-arrow' + (traceAgents.includes('incident_commander') ? ' active' : '') + '"></div>';
+  html += flowNode(nodes[5], traceAgents, mode);
+  html += '<div class="flow-arrow' + (traceAgents.includes('remediation') ? ' active' : '') + '"></div>';
+  html += flowNode(nodes[6], traceAgents, mode);
+
+  html += '</div>';
+  return html;
+}
+
+function flowNode(node, traceAgents, mode, isConflict) {
+  let cls = 'flow-node';
+  if (mode === 'running') cls += ' running';
+  else if (traceAgents.includes(node.id)) cls += isConflict ? ' conflict' : ' done';
+  const sub = traceAgents.includes(node.id) ? (mode === 'running' ? 'Processing...' : 'Complete') : '';
+  return `
+    <div class="${cls}" onclick="scrollToAgent('${node.id}')">
+      <div class="node-icon ${node.icon}">${node.short}</div>
+      <div class="node-label">${node.label}</div>
+      <div class="node-sub">${sub}</div>
+    </div>`;
+}
+
+function scrollToAgent(agentId) {
+  const el = document.querySelector(`[data-agent="${agentId}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('highlight');
+    setTimeout(() => el.classList.remove('highlight'), 2000);
+  }
+}
+
+let cardIdCounter = 0;
+
+function renderAgentTraceCard(at, label, color) {
+  const durStr = at.duration_ms ? (at.duration_ms / 1000).toFixed(1) + 's' : '';
+  const phaseClass = at.phase === 'reconciliation' ? 'phase-reconciliation' : 'phase-initial';
+  const roundLabel = at.round > 0 ? ' (Round ' + at.round + ')' : '';
+  const cardId = 'card-' + (cardIdCounter++);
+  const startCollapsed = at.phase === 'reconciliation';
+
+  let html = `<div class="agent-trace-card" data-agent="${at.agent}">`;
+  html += `<div class="atc-header" onclick="toggleCard('${cardId}')">`;
+  html += `<div class="atc-header-left">`;
+  html += `<div class="atc-dot" style="background:${color}"></div>`;
+  html += `<h3>${label}${roundLabel}</h3>`;
+  html += `<span style="font-size:10px;color:var(--text2);margin-left:4px">${at.events.length} events</span>`;
+  html += `</div>`;
+  html += `<div style="display:flex;align-items:center;gap:8px">`;
+  if (durStr) html += `<span style="font-size:11px;color:var(--text2);font-family:var(--mono)">${durStr}</span>`;
+  html += `<span class="atc-phase ${phaseClass}">${at.phase}</span>`;
+  html += `<span class="atc-toggle ${startCollapsed ? '' : 'open'}" id="toggle-${cardId}">&#9660;</span>`;
+  html += `</div></div>`;
+
+  html += `<div class="atc-body ${startCollapsed ? 'collapsed' : ''}" id="${cardId}"><ul class="event-list">`;
+  for (const ev of at.events) {
+    html += renderEvent(ev, color);
+  }
+  html += '</ul></div></div>';
+  return html;
+}
+
+function toggleCard(cardId) {
+  const body = document.getElementById(cardId);
+  const toggle = document.getElementById('toggle-' + cardId);
+  if (!body) return;
+  body.classList.toggle('collapsed');
+  toggle.classList.toggle('open');
+}
+
+function toggleAllCards(expand) {
+  document.querySelectorAll('.atc-body').forEach(b => {
+    if (expand) b.classList.remove('collapsed');
+    else b.classList.add('collapsed');
+  });
+  document.querySelectorAll('.atc-toggle').forEach(t => {
+    if (expand) t.classList.add('open');
+    else t.classList.remove('open');
+  });
+}
+
+function renderEvent(ev, color) {
+  let html = '<li class="event-item">';
+  html += '<div class="ev-header">';
+  html += `<span class="ev-type ev-${ev.type}">${ev.type.replace(/_/g, ' ')}</span>`;
+  if (ev.duration_ms) html += `<span class="ev-dur">${ev.duration_ms}ms</span>`;
+  html += '</div>';
+
+  html += '<div class="ev-content">';
+
+  switch (ev.type) {
+    case 'tool_call':
+      html += `<div class="ev-tool-name">${esc(ev.data.tool || '')}</div>`;
+      if (ev.data.args) {
+        html += `<div class="ev-tool-args">${esc(JSON.stringify(ev.data.args))}</div>`;
+      }
+      if (ev.data.result_preview) {
+        html += `<div class="ev-tool-result">${esc(ev.data.result_preview)}</div>`;
+      }
+      break;
+
+    case 'llm_call':
+      html += `<strong>LLM Iteration ${ev.data.iteration || '?'}</strong>`;
+      html += ` &mdash; ${ev.data.prompt_tokens || 0} prompt / ${ev.data.completion_tokens || 0} completion tokens`;
+      if (ev.data.has_tool_calls) html += ' <span style="color:var(--blue)">[tool calls requested]</span>';
+      break;
+
+    case 'hypothesis':
+      html += renderHypothesisBox(ev.data, color);
+      break;
+
+    case 'classification':
+      html += `<strong>Severity: </strong><span style="color:${sevColor(ev.data.severity)};font-weight:700;text-transform:uppercase">${ev.data.severity || 'unknown'}</span>`;
+      break;
+
+    case 'assessment':
+      html += `<strong>${(ev.data.affected_users || 0).toLocaleString()}</strong> users affected`;
+      if (ev.data.comms_needed) html += ' &mdash; <span style="color:var(--orange)">Customer comms needed</span>';
+      if (ev.data.comms_draft) html += `<div style="margin-top:6px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid var(--orange);font-size:11px;color:var(--text2);font-style:italic">${esc(ev.data.comms_draft)}</div>`;
+      break;
+
+    case 'conflict_detected':
+      html += '<div class="ev-decision-box">';
+      html += '<div class="ev-decision-status" style="color:var(--red)">Conflict Detected</div>';
+      if (ev.data.question) {
+        html += `<div class="ev-question-text">${esc(ev.data.question)}</div>`;
+      }
+      html += '</div>';
+      break;
+
+    case 'decision':
+      html += '<div class="ev-decision-box">';
+      html += `<div class="ev-decision-status" style="color:${statusColor(ev.data.status)}">${(ev.data.status || '').replace('_',' ').toUpperCase()}</div>`;
+      if (ev.data.final_root_cause) html += `<p style="margin-top:6px;font-size:12px;line-height:1.6">${esc(ev.data.final_root_cause)}</p>`;
+      html += '</div>';
+      break;
+
+    case 'revision_detected':
+      html += `<strong>${esc(ev.data.agent)}</strong> changed position: `;
+      html += `<span style="color:var(--red);text-decoration:line-through">${esc(ev.data.from || '').replace('_',' ')}</span>`;
+      html += ` &rarr; <span style="color:var(--green)">${esc(ev.data.to || '').replace('_',' ')}</span>`;
+      break;
+
+    case 'reconciliation_input':
+      html += `<div class="ev-question-text">${esc(ev.data.context || '')}</div>`;
+      break;
+
+    case 'proposal':
+      html += '<div class="ev-decision-box">';
+      html += `<p style="font-size:13px;font-weight:500;margin-bottom:8px">${esc(ev.data.action || '')}</p>`;
+      html += `<div style="display:flex;gap:6px;flex-wrap:wrap">`;
+      html += `<span class="ev-type" style="background:${ev.data.reversible ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'};color:${ev.data.reversible ? 'var(--green)' : 'var(--red)'}">${ev.data.reversible ? 'Reversible' : 'Irreversible'}</span>`;
+      html += `<span class="ev-type" style="background:${ev.data.requires_approval ? 'rgba(251,191,36,0.15)' : 'rgba(52,211,153,0.15)'};color:${ev.data.requires_approval ? 'var(--orange)' : 'var(--green)'}">${ev.data.requires_approval ? 'Needs Approval' : 'Auto-Approved'}</span>`;
+      html += `<span class="ev-type" style="background:rgba(96,165,250,0.15);color:var(--blue)">Risk: ${ev.data.risk_level || '?'}</span>`;
+      html += '</div></div>';
+      break;
+
+    case 'report_generated':
+      html += '<strong>Postmortem report generated</strong>';
+      if (ev.data.report_preview) {
+        html += `<div class="ev-tool-result">${esc(ev.data.report_preview)}</div>`;
+      }
+      break;
+
+    default:
+      html += `<pre style="font-size:10px;color:var(--text2)">${esc(JSON.stringify(ev.data, null, 2))}</pre>`;
+  }
+
+  html += '</div></li>';
+  return html;
+}
+
+function renderHypothesisBox(hyp, color) {
+  const conf = Math.round((hyp.confidence || 0) * 100);
+  let html = '<div class="ev-hypothesis-box">';
+  html += `<div class="ev-hyp-type" style="color:${color}">${(hyp.root_cause_type || 'unknown').replace(/_/g, ' ')}</div>`;
+  html += '<div class="ev-hyp-conf">';
+  html += `<div class="conf-bar"><div class="conf-fill" style="width:${conf}%;background:${color}"></div></div>`;
+  html += `<span class="conf-val" style="color:${color}">${conf}%</span>`;
+  html += '</div>';
+  if (hyp.evidence && hyp.evidence.length) {
+    html += '<ul class="ev-evidence">';
+    hyp.evidence.forEach(e => { html += `<li>${esc(e)}</li>`; });
+    html += '</ul>';
+  }
+  if (hyp.reasoning) {
+    html += `<p style="margin-top:8px;font-size:11px;color:var(--text2);line-height:1.5">${esc(hyp.reasoning.substring(0, 400))}${hyp.reasoning.length > 400 ? '...' : ''}</p>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>

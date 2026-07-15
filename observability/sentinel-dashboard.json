@@ -1,0 +1,165 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 0,
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["sentinel", "multi-agent", "noc"],
+  "time": {"from": "now-30m", "to": "now"},
+  "timezone": "",
+  "title": "Sentinel — Multi-Agent NOC",
+  "uid": "sentinel-noc",
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "row",
+      "title": "Workflow Level",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "collapsed": false,
+      "id": 100
+    },
+    {
+      "type": "stat",
+      "title": "Incidents by Final Status",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 1},
+      "id": 1,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (status) (sentinel_incidents_by_final_status_total)", "legendFormat": "{{status}}"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": ""}, "colorMode": "value", "graphMode": "area"}
+    },
+    {
+      "type": "stat",
+      "title": "Conflicts Detected",
+      "gridPos": {"h": 6, "w": 4, "x": 8, "y": 1},
+      "id": 2,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sentinel_conflicts_detected_total"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Reconciliation Rounds (total)",
+      "gridPos": {"h": 6, "w": 4, "x": 12, "y": 1},
+      "id": 3,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sentinel_reconciliation_rounds_total"}]
+    },
+    {
+      "type": "stat",
+      "title": "Hypothesis Revisions (agents that changed their mind)",
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 1},
+      "id": 4,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (agent) (sentinel_hypothesis_revisions_total)", "legendFormat": "{{agent}}"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Incident Duration (p50/p95)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 7},
+      "id": 5,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(sentinel_incident_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum(rate(sentinel_incident_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Incidents by Region/Service",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 7},
+      "id": 6,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (region, service) (increase(sentinel_incidents_total[5m]))", "legendFormat": "{{region}}/{{service}}"}]
+    },
+
+    {
+      "type": "row",
+      "title": "Agent Level",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 15},
+      "collapsed": false,
+      "id": 101
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent Invocations by Phase",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 7,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (agent, phase) (increase(sentinel_agent_invocations_total[5m]))", "legendFormat": "{{agent}} ({{phase}})"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent Latency p95",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 8,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(sentinel_agent_latency_seconds_bucket[5m])) by (le, agent))", "legendFormat": "{{agent}}"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tool Calls per Agent",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 9,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (agent, tool) (increase(sentinel_agent_tool_calls_total[5m]))", "legendFormat": "{{agent}} → {{tool}}"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent Loop Iterations (avg)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "id": 10,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(sentinel_agent_iterations_sum[5m])) by (agent) / sum(rate(sentinel_agent_iterations_count[5m])) by (agent)", "legendFormat": "{{agent}}"}]
+    },
+
+    {
+      "type": "row",
+      "title": "LLM Level",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 32},
+      "collapsed": false,
+      "id": 102
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM Calls / min by Agent",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 33},
+      "id": 11,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (agent) (rate(sentinel_llm_calls_total[1m])) * 60", "legendFormat": "{{agent}}"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM Latency p95 by Agent",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 33},
+      "id": 12,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(sentinel_llm_latency_seconds_bucket[5m])) by (le, agent))", "legendFormat": "{{agent}}"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Token Consumption by Agent (prompt + completion)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 41},
+      "id": 13,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (agent, direction) (increase(sentinel_llm_tokens_total[5m]))", "legendFormat": "{{agent}} ({{direction}})"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Errors & Rate Limits",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 41},
+      "id": 14,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (agent) (increase(sentinel_llm_rate_limit_backoffs_total[5m]))", "legendFormat": "{{agent}} rate_limit"},
+        {"expr": "sum by (agent, error_type) (increase(sentinel_llm_errors_total[5m]))", "legendFormat": "{{agent}} {{error_type}}"}
+      ]
+    }
+  ]
+}

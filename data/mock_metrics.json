@@ -1,0 +1,42 @@
+{
+  "ap-south-1": {
+    "video-streaming": {
+      "latency_ms": 1250,
+      "baseline_latency_ms": 120,
+      "error_rate_percent": 12.4,
+      "requests_per_second": 45000,
+      "baseline_rps": 30000,
+      "cpu_utilization_percent": 89,
+      "memory_utilization_percent": 78,
+      "active_connections": 2100000,
+      "packet_loss_percent": 3.2,
+      "timestamp": "2024-12-15T14:05:00Z"
+    },
+    "dns-resolution": {
+      "latency_ms": 45,
+      "baseline_latency_ms": 15,
+      "error_rate_percent": 0.8,
+      "requests_per_second": 120000,
+      "baseline_rps": 100000,
+      "cpu_utilization_percent": 45,
+      "memory_utilization_percent": 52,
+      "active_connections": 500000,
+      "packet_loss_percent": 0.1,
+      "timestamp": "2024-12-15T14:05:00Z"
+    }
+  },
+  "us-east-1": {
+    "video-streaming": {
+      "latency_ms": 95,
+      "baseline_latency_ms": 80,
+      "error_rate_percent": 0.3,
+      "requests_per_second": 60000,
+      "baseline_rps": 55000,
+      "cpu_utilization_percent": 42,
+      "memory_utilization_percent": 38,
+      "active_connections": 3200000,
+      "packet_loss_percent": 0.05,
+      "timestamp": "2024-12-15T14:05:00Z"
+    }
+  }
+}
